@@ -7,6 +7,7 @@
     <title>Boiler Efficiency Calculator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -232,6 +233,8 @@
             <button id="calculateButton" class="calculate-button">Calculate Boiler Efficiency</button>
             <button id="downloadPdfButton" class="calculate-button bg-green-600 hover:bg-green-700 ml-4 hidden">Download
                 PDF</button>
+            <button id="exportExcelButton" class="calculate-button bg-emerald-700 hover:bg-emerald-800 ml-4 hidden">Export
+                to Excel</button>
         </div>
 
         <div class="output-container">
@@ -329,6 +332,8 @@
         }
 
         // --- Main Calculation Logic ---
+        let lastResults = null; // Populated on successful calculation; consumed by the Excel export
+
         document.getElementById('calculateButton').addEventListener('click', function () {
             // Clear previous outputs and errors
             document.getElementById('outputPage1').textContent = '';
@@ -339,6 +344,8 @@
             document.getElementById('outputTitlePage3').textContent = '';
             document.getElementById('errorMessages').textContent = '';
             document.getElementById('downloadPdfButton').classList.add('hidden');
+            document.getElementById('exportExcelButton').classList.add('hidden');
+            lastResults = null;
             let errorOccurred = false;
 
             function displayError(message) {
@@ -683,9 +690,11 @@
             output1 += "----------\n";
             output1 += "Basis: 100 lbs Dry Ash-Free Bagasse\n";
 
+            const inputItemsForExport = [];
             function addInputItem(label, value, unit = "") {
                 const valStr = typeof value === 'number' ? formatNum(value, 0, 2, 12) : String(value).padStart(12);
                 output1 += `${label.padEnd(55)} ${valStr} ${unit}\n`;
+                inputItemsForExport.push([label, value, unit]);
             }
             addInputItem("Moisture % Bagasse", M_moisture_bagasse);
             addInputItem("Ash % Bagasse", A_ash_bagasse);
@@ -721,10 +730,10 @@
 
             for (let i = 0; i < 8; i++) {
                 const dryPctStr = (i < 5) ? formatNum(P_analysis[i][7], 0, 5, 10, false) : "".padStart(10);
-                output1 += `${P_component_names[i].padEnd(19)} ${formatNum(P_analysis[i][0], 0, 3, 10)} ${formatNum(P_analysis[i][1], 0, 5, 11, false)} ${formatNum(P_analysis[i][2], 0, 4, 10, false)} ${formatNum(P_analysis[i][3], 0, 2, 12)} ${formatNum(P_analysis[i][4], 0, 3, 20)} ${formatNum(P_analysis[i][6], 0, 5, 10, false)} ${dryPctStr}\n`;
+                output1 += `${P_component_names[i].padEnd(19)} ${formatNum(P_analysis[i][0], 0, 3, 10)} ${formatNum(P_analysis[i][1], 0, 5, 11, false)} ${formatNum(P_analysis[i][2], 0, 4, 20, false)} ${formatNum(P_analysis[i][3], 0, 2, 12)} ${formatNum(P_analysis[i][4], 0, 3, 20)} ${formatNum(P_analysis[i][6], 0, 5, 10, false)} ${dryPctStr}\n`;
             }
             output1 += "-".repeat(header1_P_str.length - 1) + "\n";
-            output1 += `${P_component_names[8].padEnd(19)} ${formatNum(P_analysis[8][0], 0, 3, 10)} ${formatNum(P_analysis[8][1], 0, 5, 11, false)} ${"".padStart(10)} ${"".padStart(12)} ${formatNum(P_analysis[8][4], 0, 3, 20)} ${formatNum(P_analysis[8][6], 0, 5, 10, false)} ${formatNum(P_analysis[8][7], 0, 5, 10, false)}\n`;
+            output1 += `${P_component_names[8].padEnd(19)} ${formatNum(P_analysis[8][0], 0, 3, 10)} ${formatNum(P_analysis[8][1], 0, 5, 11, false)} ${"".padStart(20)} ${"".padStart(12)} ${formatNum(P_analysis[8][4], 0, 3, 20)} ${formatNum(P_analysis[8][6], 0, 5, 10, false)} ${formatNum(P_analysis[8][7], 0, 5, 10, false)}\n`;
             output1 += "-".repeat(header1_P_str.length - 1) + "\n";
             document.getElementById('outputPage1').textContent = output1;
             document.getElementById('outputTitlePage1').textContent = "Page 1: Input Data & Stack Gas Analysis (DAF Basis)";
@@ -740,8 +749,10 @@
             output2 += `${"Run Number:".padEnd(15)} ${A4_run_number}\n`;
             output2 += "\n\n";
 
+            const pg2ItemsForExport = [];
             function addPg2Item(label, value, unit = "") {
                 output2 += `${label.padEnd(71)} ${formatNum(value, 0, 2, 16)} ${unit}\n`;
+                pg2ItemsForExport.push([label, value, unit]);
             }
             addPg2Item("Excess Air, %", E1_excess_air_percent);
             output2 += "\n";
@@ -787,8 +798,10 @@
             output2 += emission_header_str;
             output2 += "-".repeat(emission_header_str.length - 1) + "\n";
             output2 += "\n";
+            const emissionsForExport = [];
             function addEmissionLine(name, val1, val2, val3) {
                 output2 += `${name.padEnd(39)} ${formatNum(val1, 0, 6, 20)} ${formatNum(val2, 0, 6, 25)} ${formatNum(val3, 0, 6, 15)}\n`;
+                emissionsForExport.push([name, val1, val2, val3]);
             }
             addEmissionLine("Carbon Monoxide", emissions_co_lb_hr, emissions_co_lb_ton, emissions_co_lb_mmbtu);
             addEmissionLine("Nitrogen Oxides (as NO2)", emissions_nox_as_no2_lb_hr, emissions_nox_lb_ton, emissions_nox_lb_mmbtu);
@@ -818,16 +831,57 @@
 
             for (let i = 0; i < 8; i++) {
                 const dryPctStr_Z = (i < 5) ? formatNum(Z_actual_analysis[i][7], 0, 6, 10, false) : "".padStart(10);
-                output3 += `${P_component_names[i].padEnd(19)} ${formatNum(Z_actual_analysis[i][0], 0, 2, 14)} ${formatNum(Z_actual_analysis[i][1], 0, 4, 12, false)} ${formatNum(Z_actual_analysis[i][2], 0, 4, 10, false)} ${formatNum(Z_actual_analysis[i][3], 0, 2, 12)} ${formatNum(Z_actual_analysis[i][4], 0, 1, 23)} ${formatNum(Z_actual_analysis[i][6], 0, 4, 10, false)} ${dryPctStr_Z}\n`;
+                output3 += `${P_component_names[i].padEnd(19)} ${formatNum(Z_actual_analysis[i][0], 0, 2, 14)} ${formatNum(Z_actual_analysis[i][1], 0, 4, 12, false)} ${formatNum(Z_actual_analysis[i][2], 0, 4, 20, false)} ${formatNum(Z_actual_analysis[i][3], 0, 2, 12)} ${formatNum(Z_actual_analysis[i][4], 0, 1, 23)} ${formatNum(Z_actual_analysis[i][6], 0, 4, 10, false)} ${dryPctStr_Z}\n`;
             }
             output3 += "-".repeat(header1_Z_str.length - 1) + "\n";
-            output3 += `${P_component_names[8].padEnd(19)} ${formatNum(Z_actual_analysis[8][0], 0, 2, 14)} ${formatNum(Z_actual_analysis[8][1], 0, 4, 12, false)} ${"".padStart(10)} ${"".padStart(12)} ${formatNum(Z_actual_analysis[8][4], 0, 1, 23)} ${formatNum(Z_actual_analysis[8][6], 0, 4, 10, false)} ${formatNum(Z_actual_analysis[8][7], 0, 6, 10, false)}\n`;
+            output3 += `${P_component_names[8].padEnd(19)} ${formatNum(Z_actual_analysis[8][0], 0, 2, 14)} ${formatNum(Z_actual_analysis[8][1], 0, 4, 12, false)} ${"".padStart(20)} ${"".padStart(12)} ${formatNum(Z_actual_analysis[8][4], 0, 1, 23)} ${formatNum(Z_actual_analysis[8][6], 0, 4, 10, false)} ${formatNum(Z_actual_analysis[8][7], 0, 6, 10, false)}\n`;
             output3 += "-".repeat(header1_Z_str.length - 1) + "\n";
             document.getElementById('outputPage3').textContent = output3;
             document.getElementById('outputTitlePage3').textContent = "Page 3: Stack Gas Analysis (Actual Bagasse Burned)";
 
             if (!errorOccurred) {
                 document.getElementById('downloadPdfButton').classList.remove('hidden');
+                document.getElementById('exportExcelButton').classList.remove('hidden');
+
+                function buildStackGasRows(analysis) {
+                    const rows = [];
+                    for (let i = 0; i < 8; i++) {
+                        rows.push({
+                            Component: P_component_names[i],
+                            "Lbs.": analysis[i][0],
+                            "Lb. Moles": analysis[i][1],
+                            "Molal Heat Capacity, BTU/lb mole-deg F": analysis[i][2],
+                            "Temp. Diff., deg. F": analysis[i][3],
+                            "Heat Content, BTU": analysis[i][4],
+                            "Wet Gas, Vol %": analysis[i][6],
+                            "Dry Gas, Vol %": (i < 5) ? analysis[i][7] : null
+                        });
+                    }
+                    rows.push({
+                        Component: P_component_names[8],
+                        "Lbs.": analysis[8][0],
+                        "Lb. Moles": analysis[8][1],
+                        "Molal Heat Capacity, BTU/lb mole-deg F": null,
+                        "Temp. Diff., deg. F": null,
+                        "Heat Content, BTU": analysis[8][4],
+                        "Wet Gas, Vol %": analysis[8][6],
+                        "Dry Gas, Vol %": analysis[8][7]
+                    });
+                    return rows;
+                }
+
+                lastResults = {
+                    factoryName: A1_factory_name,
+                    boilerId: A2_boiler_id,
+                    date: A3_date,
+                    runNumber: A4_run_number,
+                    comments: A5_comments,
+                    inputItems: inputItemsForExport,
+                    stackGasDAF: buildStackGasRows(P_analysis),
+                    stackGasActual: buildStackGasRows(Z_actual_analysis),
+                    pg2Items: pg2ItemsForExport,
+                    emissions: emissionsForExport
+                };
             }
         });
 
@@ -846,6 +900,64 @@
             html2pdf().set(opt).from(element).save().then(function () {
                 document.body.classList.remove('pdf-export'); // Remove styles after generation
             });
+        });
+
+        function sanitizeFilenamePart(text) {
+            return String(text).trim().replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_') || 'Boiler';
+        }
+
+        function getTimestamp() {
+            const d = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+        }
+
+        document.getElementById('exportExcelButton').addEventListener('click', function () {
+            if (!lastResults) return;
+
+            const wb = XLSX.utils.book_new();
+
+            const summarySheetData = [
+                ["Factory Name", lastResults.factoryName],
+                ["Boiler Number", lastResults.boilerId],
+                ["Date", lastResults.date],
+                ["Run Number", lastResults.runNumber],
+                ["Comments", lastResults.comments],
+                [],
+                ["Input Data (Basis: 100 lbs Dry Ash-Free Bagasse)"],
+                ["Parameter", "Value", "Unit"],
+                ...lastResults.inputItems
+            ];
+            const wsSummary = XLSX.utils.aoa_to_sheet(summarySheetData);
+            wsSummary['!cols'] = [{ wch: 60 }, { wch: 16 }, { wch: 10 }];
+            XLSX.utils.book_append_sheet(wb, wsSummary, "Input Data");
+
+            const wsStackDAF = XLSX.utils.json_to_sheet(lastResults.stackGasDAF);
+            wsStackDAF['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 12 }];
+            XLSX.utils.book_append_sheet(wb, wsStackDAF, "Stack Gas (DAF Basis)");
+
+            const pg2SheetData = [
+                ["Parameter", "Value", "Unit"],
+                ...lastResults.pg2Items
+            ];
+            const wsPg2 = XLSX.utils.aoa_to_sheet(pg2SheetData);
+            wsPg2['!cols'] = [{ wch: 65 }, { wch: 18 }, { wch: 10 }];
+            XLSX.utils.book_append_sheet(wb, wsPg2, "Efficiency & Flows");
+
+            const emissionsSheetData = [
+                ["Boiler Emissions", "lbs/hour", "lbs/ton bagasse fired", "lb/MM Btu"],
+                ...lastResults.emissions
+            ];
+            const wsEmissions = XLSX.utils.aoa_to_sheet(emissionsSheetData);
+            wsEmissions['!cols'] = [{ wch: 36 }, { wch: 14 }, { wch: 20 }, { wch: 12 }];
+            XLSX.utils.book_append_sheet(wb, wsEmissions, "Emissions");
+
+            const wsStackActual = XLSX.utils.json_to_sheet(lastResults.stackGasActual);
+            wsStackActual['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 12 }];
+            XLSX.utils.book_append_sheet(wb, wsStackActual, "Stack Gas (Actual Burned)");
+
+            const filename = `${sanitizeFilenamePart(lastResults.boilerId)}_${getTimestamp()}.xlsx`;
+            XLSX.writeFile(wb, filename);
         });
     </script>
 </body>
