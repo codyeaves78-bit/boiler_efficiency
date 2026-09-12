@@ -184,6 +184,12 @@ if submitted:
     )
 
     results, errors = compute(inputs)
+    st.session_state["calc_results"] = results
+    st.session_state["calc_errors"] = errors
+
+if "calc_results" in st.session_state:
+    results = st.session_state["calc_results"]
+    errors = st.session_state["calc_errors"]
 
     if results is None:
         for e in errors:
