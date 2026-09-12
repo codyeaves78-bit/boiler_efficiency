@@ -33,18 +33,19 @@ and can be added to your phone's home screen like an app.
 
 Streamlit Community Cloud puts apps to sleep after a period without any
 visitors, and a sleeping app needs a manual "wake up" click before it's
-usable. `.github/workflows/keep-alive.yml` pings the deployed app every 30
-minutes so it counts as active traffic and never falls asleep.
+usable. `.github/workflows/keep-alive.yml` pings the deployed app
+(https://2ev3rjyhejsdvmmupqqzzg.streamlit.app/) every 30 minutes so it
+counts as active traffic and never falls asleep. No setup needed — it runs
+automatically.
 
-One-time setup after your first deploy:
+You can trigger it manually from the **Actions** tab (**Keep Streamlit App
+Awake → Run workflow**) to verify it's working.
 
-1. Go to the repo's **Settings → Secrets and variables → Actions → Variables** tab.
-2. Click **New repository variable**.
-3. Name: `STREAMLIT_APP_URL`, Value: your app's URL (e.g. `https://your-app-name.streamlit.app`).
-
-The workflow runs automatically from then on. You can also trigger it manually
-from the **Actions** tab (**Keep Streamlit App Awake → Run workflow**) to
-verify it's working.
+If you ever redeploy under a different URL, either edit `DEFAULT_APP_URL` at
+the top of the workflow file, or override it without touching the file by
+adding a repository variable: **Settings → Secrets and variables → Actions →
+Variables → New repository variable**, name `STREAMLIT_APP_URL`, value your
+new app's URL.
 
 ## Original HTML version
 

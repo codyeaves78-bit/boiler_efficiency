@@ -4,31 +4,30 @@ name: Keep Streamlit App Awake
 # visitors. Pinging the app on a schedule counts as traffic and keeps it
 # from ever going to sleep in the first place.
 #
-# Setup (one-time): after deploying on share.streamlit.io, add a repository
-# variable named STREAMLIT_APP_URL set to your app's URL:
+# Defaults to the deployed app's URL below. If you redeploy the app under a
+# different URL, either edit DEFAULT_APP_URL here, or override it without
+# editing this file by setting a repository variable:
 #   Repo Settings -> Secrets and variables -> Actions -> Variables tab
 #   -> New repository variable
 #   Name: STREAMLIT_APP_URL
-#   Value: https://your-app-name.streamlit.app
+#   Value: https://your-new-app-name.streamlit.app
 
 on:
   schedule:
     - cron: "*/30 * * * *"  # every 30 minutes
   workflow_dispatch: {}     # allows manually triggering a run from the Actions tab
 
+env:
+  DEFAULT_APP_URL: "https://2ev3rjyhejsdvmmupqqzzg.streamlit.app/"
+
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Check STREAMLIT_APP_URL is configured
-        run: |
-          if [ -z "${{ vars.STREAMLIT_APP_URL }}" ]; then
-            echo "::error::STREAMLIT_APP_URL repository variable is not set. See the comment at the top of this workflow file for setup instructions."
-            exit 1
-          fi
-
       - name: Ping the app
         run: |
+          APP_URL="${{ vars.STREAMLIT_APP_URL }}"
+          APP_URL="${APP_URL:-$DEFAULT_APP_URL}"
           curl --fail --silent --show-error --max-time 30 --retry 3 --retry-delay 10 \
-            -o /dev/null "${{ vars.STREAMLIT_APP_URL }}"
-          echo "Pinged ${{ vars.STREAMLIT_APP_URL }} successfully."
+            -o /dev/null "$APP_URL"
+          echo "Pinged $APP_URL successfully."
