@@ -23,6 +23,9 @@
             /* Slightly smaller for dense text */
             overflow-x: auto;
             /* Allow horizontal scroll if content is too wide */
+            -webkit-overflow-scrolling: touch;
+            /* Smooth momentum scrolling on iOS */
+            overscroll-behavior-x: contain;
             background-color: #f9fafb;
             /* Light gray background for output */
             padding: 1rem;
@@ -30,13 +33,23 @@
             border: 1px solid #e5e7eb;
         }
 
+        .scroll-hint {
+            display: none;
+        }
+
+        @media (max-width: 640px) {
+            .scroll-hint {
+                display: block;
+            }
+        }
+
         .input-group {
-            margin-bottom: 1rem;
+            margin-bottom: 1.1rem;
         }
 
         .input-group label {
             display: block;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.3rem;
             font-weight: 500;
             color: #374151;
             /* Gray-700 */
@@ -45,7 +58,10 @@
         .input-group input[type="number"],
         .input-group input[type="text"] {
             width: 100%;
-            padding: 0.5rem 0.75rem;
+            /* 16px prevents iOS Safari from auto-zooming in on focus */
+            font-size: 16px;
+            padding: 0.625rem 0.75rem;
+            min-height: 44px;
             border: 1px solid #d1d5db;
             /* Gray-300 */
             border-radius: 0.375rem;
@@ -69,12 +85,41 @@
             padding: 0.75rem 1.5rem;
             border-radius: 0.375rem;
             font-weight: 600;
+            min-height: 48px;
+            /* Comfortable touch target */
             transition: background-color 0.2s;
         }
 
         .calculate-button:hover {
             background-color: #1d4ed8;
             /* Blue-700 */
+        }
+
+        .calculate-button:active {
+            transform: scale(0.98);
+        }
+
+        /* Dedicated modifier classes (rather than Tailwind's bg-* utilities)
+           so these colors reliably win over .calculate-button's own
+           background, regardless of stylesheet load order. */
+        .calculate-button.pdf-button {
+            background-color: #16a34a;
+            /* Green-600 */
+        }
+
+        .calculate-button.pdf-button:hover {
+            background-color: #15803d;
+            /* Green-700 */
+        }
+
+        .calculate-button.excel-button {
+            background-color: #047857;
+            /* Emerald-700 */
+        }
+
+        .calculate-button.excel-button:hover {
+            background-color: #065f46;
+            /* Emerald-800 */
         }
 
         .output-container {
@@ -110,11 +155,11 @@
     </style>
 </head>
 
-<body class="bg-gray-100 text-gray-800 p-4 md:p-8">
-    <div class="max-w-6xl mx-auto bg-white p-6 md:p-8 rounded-lg shadow-xl">
-        <header class="mb-8 text-center">
-            <h1 class="text-3xl font-bold text-gray-700">Boiler Efficiency Calculator</h1>
-            <p class="text-gray-500">Translates the BOILERE1 program to a web application.</p>
+<body class="bg-gray-100 text-gray-800 p-3 sm:p-4 md:p-8">
+    <div class="max-w-6xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-lg shadow-xl">
+        <header class="mb-6 sm:mb-8 text-center">
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-700">Boiler Efficiency Calculator</h1>
+            <p class="text-gray-500 text-sm sm:text-base">Translates the BOILERE1 program to a web application.</p>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -229,16 +274,19 @@
             </div>
         </div>
 
-        <div class="text-center mb-8">
-            <button id="calculateButton" class="calculate-button">Calculate Boiler Efficiency</button>
-            <button id="downloadPdfButton" class="calculate-button bg-green-600 hover:bg-green-700 ml-4 hidden">Download
+        <div class="flex flex-col sm:flex-row sm:justify-center gap-3 mb-8">
+            <button id="calculateButton" class="calculate-button w-full sm:w-auto">Calculate Boiler
+                Efficiency</button>
+            <button id="downloadPdfButton" class="calculate-button pdf-button w-full sm:w-auto hidden">Download
                 PDF</button>
-            <button id="exportExcelButton" class="calculate-button bg-emerald-700 hover:bg-emerald-800 ml-4 hidden">Export
+            <button id="exportExcelButton" class="calculate-button excel-button w-full sm:w-auto hidden">Export
                 to Excel</button>
         </div>
 
         <div class="output-container">
             <div id="errorMessages" class="mb-4 text-red-600 font-semibold"></div>
+            <p class="scroll-hint text-xs text-gray-400 mb-2">&larr; Swipe the tables below sideways to see the full
+                report &rarr;</p>
             <div class="output-page mb-6">
                 <h3 id="outputTitlePage1"></h3>
                 <pre id="outputPage1"></pre>
