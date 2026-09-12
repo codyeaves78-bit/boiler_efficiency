@@ -1,0 +1,34 @@
+name: Keep Streamlit App Awake
+
+# Streamlit Community Cloud puts apps to sleep after a period with no
+# visitors. Pinging the app on a schedule counts as traffic and keeps it
+# from ever going to sleep in the first place.
+#
+# Setup (one-time): after deploying on share.streamlit.io, add a repository
+# variable named STREAMLIT_APP_URL set to your app's URL:
+#   Repo Settings -> Secrets and variables -> Actions -> Variables tab
+#   -> New repository variable
+#   Name: STREAMLIT_APP_URL
+#   Value: https://your-app-name.streamlit.app
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"  # every 30 minutes
+  workflow_dispatch: {}     # allows manually triggering a run from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check STREAMLIT_APP_URL is configured
+        run: |
+          if [ -z "${{ vars.STREAMLIT_APP_URL }}" ]; then
+            echo "::error::STREAMLIT_APP_URL repository variable is not set. See the comment at the top of this workflow file for setup instructions."
+            exit 1
+          fi
+
+      - name: Ping the app
+        run: |
+          curl --fail --silent --show-error --max-time 30 --retry 3 --retry-delay 10 \
+            -o /dev/null "${{ vars.STREAMLIT_APP_URL }}"
+          echo "Pinged ${{ vars.STREAMLIT_APP_URL }} successfully."

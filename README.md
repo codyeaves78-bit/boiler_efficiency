@@ -29,6 +29,23 @@ push this repo to GitHub, connect it at share.streamlit.io, and point it at
 `app.py`. You'll get a public HTTPS URL that works great on mobile browsers
 and can be added to your phone's home screen like an app.
 
+### Keeping the app awake
+
+Streamlit Community Cloud puts apps to sleep after a period without any
+visitors, and a sleeping app needs a manual "wake up" click before it's
+usable. `.github/workflows/keep-alive.yml` pings the deployed app every 30
+minutes so it counts as active traffic and never falls asleep.
+
+One-time setup after your first deploy:
+
+1. Go to the repo's **Settings → Secrets and variables → Actions → Variables** tab.
+2. Click **New repository variable**.
+3. Name: `STREAMLIT_APP_URL`, Value: your app's URL (e.g. `https://your-app-name.streamlit.app`).
+
+The workflow runs automatically from then on. You can also trigger it manually
+from the **Actions** tab (**Keep Streamlit App Awake → Run workflow**) to
+verify it's working.
+
 ## Original HTML version
 
 `boiler_eff.html` is the original single-file browser version, with the
